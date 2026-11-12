@@ -1,0 +1,284 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Global Safety Net: Default-deny catch-all
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // Primitive Security Helpers
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isVerifiedUser() {
+      return isSignedIn() && request.auth.token.email_verified == true;
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() >= 1 && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    function isBoundedStringList(arr, maxItems, maxItemLen) {
+      return arr is list
+        && arr.size() <= maxItems
+        && (arr.size() == 0 || (arr[0] is string && arr[0].size() <= maxItemLen));
+    }
+
+    // Validation Blueprint 1: AuraMessage (/aura_messages/{messageId})
+    function isValidAuraMessage(data) {
+      return data.keys().hasAll([
+          'ownerId',
+          'role',
+          'text',
+          'clientTimestamp',
+          'sequence',
+          'isVoiceCommand',
+          'attachmentLabel',
+          'searchQueries',
+          'sourceTitles',
+          'sourceUris',
+          'createdAt'
+        ])
+        && data.keys().hasOnly([
+          'ownerId',
+          'role',
+          'text',
+          'clientTimestamp',
+          'sequence',
+          'isVoiceCommand',
+          'attachmentLabel',
+          'searchQueries',
+          'sourceTitles',
+          'sourceUris',
+          'createdAt'
+        ])
+        && data.ownerId is string
+        && data.ownerId.size() >= 1
+        && data.ownerId.size() <= 128
+        && data.ownerId.matches('^[a-zA-Z0-9_\\-]+$')
+        && data.ownerId == request.auth.uid
+        && data.role is string
+        && data.role.size() <= 10
+        && (data.role == 'user' || data.role == 'model')
+        && data.text is string
+        && data.text.size() >= 1
+        && data.text.size() <= 16000
+        && data.clientTimestamp is string
+        && data.clientTimestamp.size() >= 10
+        && data.clientTimestamp.size() <= 64
+        && data.sequence is number
+        && data.sequence >= 0
+        && data.isVoiceCommand is bool
+        && data.attachmentLabel is string
+        && data.attachmentLabel.size() <= 120
+        && isBoundedStringList(data.searchQueries, 6, 240)
+        && isBoundedStringList(data.sourceTitles, 8, 240)
+        && isBoundedStringList(data.sourceUris, 8, 1024)
+        && data.createdAt is timestamp;
+    }
+
+    // Validation Blueprint 2: AuraMemory (/aura_memories/{memoryId})
+    function isValidAuraMemory(data) {
+      return data.keys().hasAll([
+          'ownerId',
+          'title',
+          'content',
+          'category',
+          'sourceUris',
+          'createdAt',
+          'updatedAt'
+        ])
+        && data.keys().hasOnly([
+          'ownerId',
+          'title',
+          'content',
+          'category',
+          'sourceUris',
+          'createdAt',
+          'updatedAt'
+        ])
+        && data.ownerId is string
+        && data.ownerId.size() >= 1
+        && data.ownerId.size() <= 128
+        && data.ownerId.matches('^[a-zA-Z0-9_\\-]+$')
+        && data.ownerId == request.auth.uid
+        && data.title is string
+        && data.title.size() >= 2
+        && data.title.size() <= 140
+        && data.content is string
+        && data.content.size() >= 3
+        && data.content.size() <= 4000
+        && data.category is string
+        && data.category.size() <= 40
+        && (
+          data.category == 'Riset & Fakta'
+          || data.category == 'Pemrograman & Tugas'
+          || data.category == 'Preferensi & Konteks'
+        )
+        && isBoundedStringList(data.sourceUris, 8, 1024)
+        && data.createdAt is timestamp
+        && data.updatedAt is timestamp;
+    }
+
+    // Validation Blueprint 3: AuraRoutine (/aura_routines/{routineId})
+    function isValidAuraRoutine(data) {
+      return data.keys().hasAll([
+          'ownerId',
+          'title',
+          'time',
+          'category',
+          'completed',
+          'notes',
+          'createdAt',
+          'updatedAt'
+        ])
+        && data.keys().hasOnly([
+          'ownerId',
+          'title',
+          'time',
+          'category',
+          'completed',
+          'notes',
+          'createdAt',
+          'updatedAt'
+        ])
+        && data.ownerId is string
+        && data.ownerId.size() >= 1
+        && data.ownerId.size() <= 128
+        && data.ownerId.matches('^[a-zA-Z0-9_\\-]+$')
+        && data.ownerId == request.auth.uid
+        && data.title is string
+        && data.title.size() >= 3
+        && data.title.size() <= 100
+        && data.time is string
+        && data.time.size() == 5
+        && data.time.matches('^([01]\\d|2[0-3]):([0-5]\\d)$')
+        && data.category is string
+        && data.category.size() <= 30
+        && (
+          data.category == 'Fokus Kerja'
+          || data.category == 'Kesehatan'
+          || data.category == 'Pribadi'
+          || data.category == 'Evaluasi'
+        )
+        && data.completed is bool
+        && data.notes is string
+        && data.notes.size() <= 240
+        && data.createdAt is timestamp
+        && data.updatedAt is timestamp;
+    }
+
+    // Collection 1: Conversation & Search History
+    match /aura_messages/{messageId} {
+      allow get: if isVerifiedUser()
+        && isValidId(messageId)
+        && existing().ownerId == request.auth.uid;
+
+      allow list: if isVerifiedUser()
+        && existing().ownerId == request.auth.uid;
+
+      allow create: if isVerifiedUser()
+        && isValidId(messageId)
+        && isValidAuraMessage(incoming())
+        && incoming().createdAt == request.time;
+
+      allow update: if false;
+
+      allow delete: if isVerifiedUser()
+        && isValidId(messageId)
+        && existing().ownerId == request.auth.uid;
+    }
+
+    // Collection 2: Persistent A.U.R.A Memory Vault
+    match /aura_memories/{memoryId} {
+      allow get: if isVerifiedUser()
+        && isValidId(memoryId)
+        && existing().ownerId == request.auth.uid;
+
+      allow list: if isVerifiedUser()
+        && existing().ownerId == request.auth.uid;
+
+      allow create: if isVerifiedUser()
+        && isValidId(memoryId)
+        && isValidAuraMemory(incoming())
+        && incoming().createdAt == request.time
+        && incoming().updatedAt == request.time;
+
+      allow update: if (
+        isVerifiedUser()
+        && isValidId(memoryId)
+        && isValidAuraMemory(incoming())
+        && existing().ownerId == request.auth.uid
+        && incoming().ownerId == existing().ownerId
+        && incoming().createdAt == existing().createdAt
+        && incoming().updatedAt == request.time
+        && (
+          incoming().diff(existing()).affectedKeys().hasOnly([
+            'title',
+            'content',
+            'category',
+            'sourceUris',
+            'updatedAt'
+          ])
+        )
+      );
+
+      allow delete: if isVerifiedUser()
+        && isValidId(memoryId)
+        && existing().ownerId == request.auth.uid;
+    }
+
+    // Collection 3: Cross-Device Routines
+    match /aura_routines/{routineId} {
+      allow get: if isVerifiedUser()
+        && isValidId(routineId)
+        && existing().ownerId == request.auth.uid;
+
+      allow list: if isVerifiedUser()
+        && existing().ownerId == request.auth.uid;
+
+      allow create: if isVerifiedUser()
+        && isValidId(routineId)
+        && isValidAuraRoutine(incoming())
+        && incoming().createdAt == request.time
+        && incoming().updatedAt == request.time;
+
+      allow update: if (
+        isVerifiedUser()
+        && isValidId(routineId)
+        && isValidAuraRoutine(incoming())
+        && existing().ownerId == request.auth.uid
+        && incoming().ownerId == existing().ownerId
+        && incoming().createdAt == existing().createdAt
+        && incoming().updatedAt == request.time
+        && (
+          // Action 1: Toggle completion status
+          incoming().diff(existing()).affectedKeys().hasOnly(['completed', 'updatedAt'])
+          ||
+          // Action 2: Edit routine details
+          incoming().diff(existing()).affectedKeys().hasOnly([
+            'title',
+            'time',
+            'category',
+            'notes',
+            'updatedAt'
+          ])
+        )
+      );
+
+      allow delete: if isVerifiedUser()
+        && isValidId(routineId)
+        && existing().ownerId == request.auth.uid;
+    }
+  }
+}

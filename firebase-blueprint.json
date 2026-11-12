@@ -1,0 +1,212 @@
+{
+  "entities": {
+    "AuraMessage": {
+      "title": "AuraMessage",
+      "description": "Pesan percakapan pengguna dan balasan A.U.R.A beserta metadata lampiran gambar ringan dan sitasi sumber penelusuran web (tanpa menyimpan biner gambar di Firestore).",
+      "type": "object",
+      "properties": {
+        "ownerId": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$",
+          "description": "UID pemilik akun Google yang terautentikasi."
+        },
+        "role": {
+          "type": "string",
+          "enum": ["user", "model"],
+          "maxLength": 10,
+          "description": "Pengirim pesan percakapan."
+        },
+        "text": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 16000,
+          "description": "Isi teks percakapan, analisis gambar, atau kode program."
+        },
+        "clientTimestamp": {
+          "type": "string",
+          "minLength": 10,
+          "maxLength": 64,
+          "description": "Waktu ISO tampilan pesan."
+        },
+        "sequence": {
+          "type": "number",
+          "description": "Urutan kronologis pesan dalam riwayat pengguna."
+        },
+        "isVoiceCommand": {
+          "type": "boolean",
+          "description": "Penanda apakah pesan dikirim melalui perintah suara."
+        },
+        "attachmentLabel": {
+          "type": "string",
+          "minLength": 0,
+          "maxLength": 120,
+          "description": "Nama/ringkasan berkas gambar yang dilampirkan (string kosong jika tanpa gambar; biner gambar tidak pernah disimpan di Firestore)."
+        },
+        "searchQueries": {
+          "type": "array",
+          "description": "Daftar kueri penelusuran web yang dijalankan (maksimal 6 item)."
+        },
+        "sourceTitles": {
+          "type": "array",
+          "description": "Daftar judul sumber web terverifikasi (maksimal 8 item)."
+        },
+        "sourceUris": {
+          "type": "array",
+          "description": "Daftar tautan URL sumber web terverifikasi (maksimal 8 item)."
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Waktu pembuatan dokumen di sisi server Firestore."
+        }
+      },
+      "required": [
+        "ownerId",
+        "role",
+        "text",
+        "clientTimestamp",
+        "sequence",
+        "isVoiceCommand",
+        "attachmentLabel",
+        "searchQueries",
+        "sourceTitles",
+        "sourceUris",
+        "createdAt"
+      ]
+    },
+    "AuraMemory": {
+      "title": "AuraMemory",
+      "description": "Catatan ingatan jangka panjang A.U.R.A berisi hasil riset web, analisis gambar, konteks pemrograman, dan preferensi pengguna.",
+      "type": "object",
+      "properties": {
+        "ownerId": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$",
+          "description": "UID pemilik akun Google."
+        },
+        "title": {
+          "type": "string",
+          "minLength": 2,
+          "maxLength": 140,
+          "description": "Judul ringkas topik ingatan, temuan visual, atau riset."
+        },
+        "content": {
+          "type": "string",
+          "minLength": 3,
+          "maxLength": 4000,
+          "description": "Ringkasan fakta, hasil pembahasan gambar, konteks debugging/kode, atau preferensi penting."
+        },
+        "category": {
+          "type": "string",
+          "enum": ["Riset & Fakta", "Pemrograman & Tugas", "Preferensi & Konteks"],
+          "maxLength": 40,
+          "description": "Kategori ingatan A.U.R.A."
+        },
+        "sourceUris": {
+          "type": "array",
+          "description": "Daftar URL referensi terkait (maksimal 8 item)."
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Waktu pembuatan ingatan di server."
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Waktu pembaruan terakhir ingatan di server."
+        }
+      },
+      "required": [
+        "ownerId",
+        "title",
+        "content",
+        "category",
+        "sourceUris",
+        "createdAt",
+        "updatedAt"
+      ]
+    },
+    "AuraRoutine": {
+      "title": "AuraRoutine",
+      "description": "Jadwal rutinitas harian pengguna yang disinkronkan lintas perangkat.",
+      "type": "object",
+      "properties": {
+        "ownerId": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$",
+          "description": "UID pemilik akun Google."
+        },
+        "title": {
+          "type": "string",
+          "minLength": 3,
+          "maxLength": 100,
+          "description": "Nama kegiatan rutinitas."
+        },
+        "time": {
+          "type": "string",
+          "minLength": 5,
+          "maxLength": 5,
+          "pattern": "^([01]\\d|2[0-3]):([0-5]\\d)$",
+          "description": "Jam pelaksanaan format 24-jam HH:MM."
+        },
+        "category": {
+          "type": "string",
+          "enum": ["Fokus Kerja", "Kesehatan", "Pribadi", "Evaluasi"],
+          "maxLength": 30,
+          "description": "Kategori rutinitas."
+        },
+        "completed": {
+          "type": "boolean",
+          "description": "Status penyelesaian hari ini."
+        },
+        "notes": {
+          "type": "string",
+          "minLength": 0,
+          "maxLength": 240,
+          "description": "Catatan opsional rutinitas (string kosong bila tidak ada)."
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Waktu pembuatan di server."
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Waktu pembaruan di server."
+        }
+      },
+      "required": [
+        "ownerId",
+        "title",
+        "time",
+        "category",
+        "completed",
+        "notes",
+        "createdAt",
+        "updatedAt"
+      ]
+    }
+  },
+  "firestore": {
+    "/aura_messages/{messageId}": {
+      "schema": { "$ref": "#/entities/AuraMessage" },
+      "description": "Menyimpan riwayat percakapan lintas perangkat, label lampiran gambar ringan, dan sitasi sumber riset web milik pengguna."
+    },
+    "/aura_memories/{memoryId}": {
+      "schema": { "$ref": "#/entities/AuraMemory" },
+      "description": "Menyimpan ingatan jangka panjang A.U.R.A (temuan riset web, analisis gambar, solusi kode, preferensi sapaan/tugas)."
+    },
+    "/aura_routines/{routineId}": {
+      "schema": { "$ref": "#/entities/AuraRoutine" },
+      "description": "Menyimpan jadwal rutinitas harian pengguna yang tersinkron lintas perangkat."
+    }
+  }
+}
